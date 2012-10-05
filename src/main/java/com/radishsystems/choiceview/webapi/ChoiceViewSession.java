@@ -118,6 +118,14 @@ public class ChoiceViewSession {
 		mapper = new ObjectMapper();
 	}
 	
+	public ChoiceViewSession(String serverAddress, boolean useHttps) {
+		this(serverAddress, useHttps ? 443 : 80, useHttps);
+	}
+	
+	public ChoiceViewSession(String serverAddress) {
+		this(serverAddress, false);
+	}
+	
 	public boolean StartSession(String callerId, String callId) {
 		if(cvSession != null && cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
