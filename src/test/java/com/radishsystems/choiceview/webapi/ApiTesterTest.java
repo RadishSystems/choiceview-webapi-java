@@ -9,7 +9,7 @@ import org.junit.Test;
 /**
  * Unit test for simple App.
  */
-public class AppTest 
+public class ApiTesterTest 
 {
 	@Before
 	public void setUp() throws Exception
