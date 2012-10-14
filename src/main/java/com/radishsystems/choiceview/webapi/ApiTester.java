@@ -1,15 +1,29 @@
 package com.radishsystems.choiceview.webapi;
 
 import java.awt.EventQueue;
+import java.util.Date;
+import java.util.Map;
+import java.util.Properties;
 
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.JFrame;
 import javax.swing.SpringLayout;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
 import javax.swing.JButton;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
 
 public class ApiTester {
 
+	private final Properties settings;
+	private final String SERVER_ADDRESS = "ServerAddress";
+	private final String SERVER_PORT = "ServerPort";
+	
+	private ChoiceViewSession cvSession;
+	private int callId;
+	
 	private JFrame frmWebApiTester;
 	private JTextField txtNewCallerId;
 	private JTextField txtNewCallId;
@@ -19,6 +33,125 @@ public class ApiTester {
 	private JTextField dispConnectionState;
 	private JTextField dispNetworkType;
 	private JTextField dispNetworkQuality;
+	
+	private Action actionConnection;
+	private Action actionSendText;
+	private Action actionSendUrl;
+	private Action actionGetProperties;
+	
+	private final class ConnectionAction extends AbstractAction {
+		private final String START_SESSION = "Start Session";
+		private final String END_SESSION = "End Session";
+		
+		public ConnectionAction() {
+			if(cvSession == null) {
+				cvSession = new ChoiceViewSession(getServerAddress(), true);
+				callId = 1000;
+			}
+			putValue(Action.NAME,
+					cvSession.GetStatus().equalsIgnoreCase("disconnected") ?
+							START_SESSION : END_SESSION);
+		}
+		public void actionPerformed(ActionEvent e) {
+			String action = (String) getValue(Action.NAME);
+			if(action.equals(START_SESSION)) {
+				StartSession();
+			} else if(action.equals(END_SESSION)) {
+				EndSession();
+			}
+		}
+		
+		private void StartSession() {
+			if(cvSession.GetStatus().equalsIgnoreCase("disconnected")) {
+				callId += 1;
+				if(cvSession.StartSession(txtNewCallerId.getText(), Integer.toString(callId))) {
+					putValue(Action.NAME, END_SESSION);
+				}
+			}
+			
+		}
+		
+		private void EndSession() {
+			if(cvSession != null && !cvSession.GetStatus().equalsIgnoreCase("disconnected")) {
+				if(cvSession.EndSession()) {
+					putValue(Action.NAME, START_SESSION);
+				}
+			}
+		}
+		
+	}
+	
+	private final class UrlAction extends AbstractAction {
+		private final String SEND_URL = "Send Url";
+		
+		public UrlAction() {
+			putValue(Action.NAME, SEND_URL);
+			setEnabled(false);
+		}
+		public void actionPerformed(ActionEvent e) {
+			if(cvSession != null && !cvSession.GetStatus().equalsIgnoreCase("disconnected")) {
+				if(cvSession.SendUrl("http://www.radishsystems.com")) {
+				}
+			}
+		}
+		
+	}
+	
+	private final class TextAction extends AbstractAction {
+		private final String SEND_TEXT = "Send Text";
+		
+		public TextAction() {
+			putValue(Action.NAME, SEND_TEXT);
+			setEnabled(false);
+		}
+		public void actionPerformed(ActionEvent e) {
+			if(cvSession != null && !cvSession.GetStatus().equalsIgnoreCase("disconnected")) {
+				if(cvSession.SendText("Test message sent at " + new Date(System.currentTimeMillis()).toString())) {
+				}
+			}
+		}
+		
+	}
+	
+	private final class PropertiesAction extends AbstractAction {
+		private final String GET_PROPERTIES = "Get Properties";
+		
+		public PropertiesAction() {
+			putValue(Action.NAME, GET_PROPERTIES);
+			setEnabled(false);
+		}
+		public void actionPerformed(ActionEvent e) {
+			if(cvSession != null && !cvSession.GetStatus().equalsIgnoreCase("disconnected")) {
+				Map<String, String> properties = cvSession.GetProperties();
+				if(properties != null) {
+					
+				}
+			}
+		}
+		
+	}
+	
+	public String getServerAddress() {
+		return settings.getProperty(SERVER_ADDRESS);
+	}
+	public void setServerAddress(String serverAddress) {
+		settings.setProperty(SERVER_ADDRESS, serverAddress);
+	}
+	
+	public int getServerPort() {
+		String portValue = settings.getProperty(SERVER_PORT);
+		int port;
+		try {
+			port = portValue != null ? Integer.parseInt(portValue) : 0;
+		}
+		catch(NumberFormatException ex) {
+			port = 0;
+		}
+		return port;
+	}
+	public void setServerPort(int port) {
+		settings.setProperty(SERVER_PORT, Integer.toString(port));
+	}
 	
 	/**
 	 * Launch the application.
@@ -40,6 +173,10 @@ public class ApiTester {
 	 * Create the application.
 	 */
 	public ApiTester() {
+		settings = new Properties();
+		// TODO: Read settings from file
+		setServerAddress("cvnet2.radishsystems.com");
+		
 		initialize();
 	}
 
@@ -78,23 +215,27 @@ public class ApiTester {
 		frmWebApiTester.getContentPane().add(txtNewCallId);
 		txtNewCallId.setColumns(10);
 		
-		JButton btnStartSession = new JButton("Start Session");
+		actionConnection = new ConnectionAction();
+		JButton btnStartSession = new JButton(actionConnection);
 		springLayout.putConstraint(SpringLayout.WEST, btnStartSession, 191, SpringLayout.WEST, frmWebApiTester.getContentPane());
 		frmWebApiTester.getContentPane().add(btnStartSession);
 		
-		JButton btnSendUrl = new JButton("Send URL");
+		actionSendUrl = new UrlAction();
+		JButton btnSendUrl = new JButton(actionSendUrl);
 		springLayout.putConstraint(SpringLayout.NORTH, btnSendUrl, 0, SpringLayout.NORTH, btnStartSession);
 		springLayout.putConstraint(SpringLayout.WEST, btnSendUrl, 0, SpringLayout.WEST, frmWebApiTester.getContentPane());
 		springLayout.putConstraint(SpringLayout.SOUTH, btnSendUrl, -45, SpringLayout.SOUTH, frmWebApiTester.getContentPane());
 		springLayout.putConstraint(SpringLayout.EAST, btnSendUrl, 21, SpringLayout.WEST, lblIvrCallId);
 		frmWebApiTester.getContentPane().add(btnSendUrl);
 		
-		JButton btnSendText = new JButton("Send Text");
+		actionSendText = new TextAction();
+		JButton btnSendText = new JButton(actionSendText);
 		springLayout.putConstraint(SpringLayout.WEST, btnSendText, 0, SpringLayout.WEST, btnSendUrl);
 		springLayout.putConstraint(SpringLayout.SOUTH, btnSendText, -10, SpringLayout.SOUTH, frmWebApiTester.getContentPane());
 		frmWebApiTester.getContentPane().add(btnSendText);
 		
-		JButton btnGetProperties = new JButton("Get Properties");
+		actionGetProperties = new PropertiesAction();
+		JButton btnGetProperties = new JButton(actionGetProperties);
 		springLayout.putConstraint(SpringLayout.WEST, btnGetProperties, 193, SpringLayout.WEST, frmWebApiTester.getContentPane());
 		springLayout.putConstraint(SpringLayout.SOUTH, btnGetProperties, -10, SpringLayout.SOUTH, frmWebApiTester.getContentPane());
 		springLayout.putConstraint(SpringLayout.EAST, btnGetProperties, 0, SpringLayout.EAST, frmWebApiTester.getContentPane());
@@ -174,5 +315,19 @@ public class ApiTester {
 		springLayout.putConstraint(SpringLayout.WEST, dispNetworkQuality, 5, SpringLayout.EAST, lblNetworkQuality);
 		frmWebApiTester.getContentPane().add(dispNetworkQuality);
 		dispNetworkQuality.setColumns(10);
+	}
+	
+	private void updateControls() {
+		boolean connected = cvSession.GetStatus().equalsIgnoreCase("connected");
+		actionSendUrl.setEnabled(connected);
+		actionSendText.setEnabled(connected);
+		actionSendUrl.setEnabled(connected);
+		
+		dispSessionId.setText(Integer.toString(cvSession.GetSessionId()));
+		dispCallerId.setText(cvSession.GetCallerId());
+		dispCallId.setText(cvSession.GetCallId());
+		dispNetworkType.setText(cvSession.GetNetworkQuality());
+		dispNetworkQuality.setText(cvSession.GetNetworkQuality());
+		dispConnectionState.setText(cvSession.GetStatus());
 	}
 }
