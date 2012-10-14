@@ -105,9 +105,10 @@ public class ChoiceViewSession {
 	public ChoiceViewSession(String serverAddress, int serverPort, boolean useHttps) {
 		if(serverAddress == null) throw new IllegalArgumentException("No server address specified.");
 		URIBuilder builder = new URIBuilder();
-		builder.setScheme(useHttps ? "https" : "http")
-			.setHost(serverAddress).setPort(serverPort)
-			.setPath("/ivr/api/sessions");
+		builder.setScheme(useHttps ? "https" : "http").setHost(serverAddress).setPath("/ivr/api/sessions");
+		if(serverPort > 0) {
+			builder.setPort(serverPort);
+		}
 		try {
 			sessionsUri = builder.build();
 		} catch (URISyntaxException e) {
