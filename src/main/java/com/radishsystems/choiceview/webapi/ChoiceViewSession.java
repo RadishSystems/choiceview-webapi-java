@@ -35,6 +35,15 @@ public class ChoiceViewSession {
 			this.href = href;
 		}
 	}
+	static class Property {
+		public String name;
+		public String value;
+		public Property() { this("", ""); }
+		public Property(String name, String value) {
+			this.name = name;
+			this.value = value;
+		}
+	}
 	static class Session {
 		public int sessionId;
 		public String callerId;
@@ -51,6 +60,14 @@ public class ChoiceViewSession {
 			status = "disconnected";
 			networkQuality = "";
 			networkType = "";
+			properties = new HashMap<String, String>();
+			links = new ArrayList<Link>();
+		}
+	}
+	static class Payload {
+		final public Map<String, String> properties;
+		final public List<Link> links;
+		public Payload() {
 			properties = new HashMap<String, String>();
 			links = new ArrayList<Link>();
 		}
@@ -76,6 +93,19 @@ public class ChoiceViewSession {
 				HttpEntity entity = response.getEntity();
 				if (entity != null) {
 				    return EntityUtils.toString(entity);
+				}
+			}
+			return null;
+		}
+	};
+	ResponseHandler<Payload> payloadHandler = new ResponseHandler<Payload>() {
+		public Payload handleResponse(HttpResponse response) 
+				throws ClientProtocolException, IOException {
+			int statusCode = response.getStatusLine().getStatusCode();
+			if(statusCode > 199 && statusCode < 300) {
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+				    return mapper.readValue(EntityUtils.toString(entity), Payload.class);
 				}
 			}
 			return null;
@@ -263,6 +293,65 @@ public class ChoiceViewSession {
 		return null;
 	}
 	
+	public Map<String, String> UpdateProperties() {
+		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
+			return null;
+		}
+		
+		try {
+			URI apiUri = getPayloadUri();
+			if(apiUri != null) {
+				HttpGet request = new HttpGet(apiUri);
+				Payload payload = client.execute(request, payloadHandler);
+				if(payload != null && !payload.properties.equals(cvSession.properties)) {
+					cvSession.properties.putAll(payload.properties);
+				}
+				return payload.properties;
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}		
+		return null;
+	}
+	
+	public boolean AddProperties(Map<String, String> properties) {
+		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
+			return false;
+		}
+		for(String key : properties.keySet()) {
+			if(key == null || key.length() == 0 ||
+			   cvSession.properties.containsKey(key)) {
+				return false;
+			}
+		}
+		try {
+			URI apiUri = getPayloadUri();
+			if(apiUri != null) {
+				List<Property> pairs = new ArrayList<Property>();
+				for(Map.Entry<String, String> pair : properties.entrySet()) {
+					pairs.add(new Property(pair.getKey(), pair.getValue()));
+				}
+				HttpPost request = new HttpPost(apiUri);
+				request.setEntity(new StringEntity(mapper.writeValueAsString(pairs),
+						ContentType.create("application/json", "utf-8")));
+				HttpResponse response = client.execute(request);
+				return response.getStatusLine().getStatusCode() == 200;
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}		
+		
+		return false;
+	}
+	
+	public boolean AddProperty(String name, String value) {
+		Map<String, String> properties = new HashMap<String, String>();
+		properties.put(name, value);
+		return AddProperties(properties);
+	}
+	
 	private URI getUri(String rel) {
 		URI selfUri = null;
 		for(Link l : cvSession.links) {
@@ -285,5 +374,9 @@ public class ChoiceViewSession {
 	
 	private URI getControlMessageUri() {
 		return getUri(ControlMessageRel);
+	}
+	
+	private URI getPayloadUri() {
+		return getUri(PayloadRel);
 	}
 }

@@ -25,7 +25,7 @@ You can install this library in any Java application or application server. The 
 
 LICENSE
 -------
-TBD
+[MIT License](https://github.com/radishsystems/choiceview-webapi-java/blob/master/LICENSE)
 
 Building the library
 --------------------
@@ -41,7 +41,7 @@ The choiceview-webapi-java is at an early stage of development. We currently don
 
 Examples
 --------
-The unit tests provide examples of how to make ChoiceView API calls with the java library.  There is also an API tester program with a GUI that can be used to send text and urls to a ChoiceView enabled device.
+The unit tests provide examples of how to make ChoiceView API calls with the java library.  We also have plans to add sample programs that can be used to send text and urls to a ChoiceView enabled device.
 
 Contact Information
 -------------------
