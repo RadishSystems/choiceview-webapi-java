@@ -1,14 +1,12 @@
 Overview
 --------
-ChoiceView is a Communications-as-a-Service (CAAS) platform that allows visual information
-to be sent from a contact center agent or IVR to mobile users equipped with the ChoiceView app.
+ChoiceView is a Communications-as-a-Service (CAAS) platform that allows visual information to be sent from a contact center agent or IVR to mobile users equipped with the ChoiceView app.
 
 Description
 -----------
-The ChoiceView IVR Web API is a REST-based service that provides IVR systems and telephony services
-access to ChoiceView features.
+The [ChoiceView REST API](http://www.radishsystems.com/for-developers/for-ivr-developers/) is a REST-based service that provides IVR systems and telephony services access to ChoiceView features. 
 
-This repository contains source code for a java library wrapper for the Web API (choiceview-webapi-java). The library provides basic methods that can be used to integrate ChoiceView with java-based application servers.  The methods allow you to communicate with ChoiceView servers without having to deal with either XML or JSON.
+This repository contains source code for a java library wrapper for the REST API (choiceview-webapi-java). The library provides basic methods that can be used to integrate ChoiceView with java-based application servers.  The methods allow you to communicate with ChoiceView servers without having to deal with HTTP, XML, or JSON.
 
 Dependencies
 ------------
@@ -45,7 +43,7 @@ The unit tests provide examples of how to make ChoiceView API calls with the jav
 
 Contact Information
 -------------------
-If you want more information on ChoiceView, or want access to the ChoiceView Web API, contact us.
+If you want more information on ChoiceView, or want access to the ChoiceView REST API, contact us.
 
 [Radish Systems, LLC](http://www.radishsystems.com/support/contact-radish-customer-support/)
 
