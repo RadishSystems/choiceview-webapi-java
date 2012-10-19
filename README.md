@@ -25,7 +25,7 @@ You can install this library in any Java application or application server. The 
 
 LICENSE
 -------
-TBD
+[MIT License](https://github.com/radishsystems/choiceview-webapi-java/blob/master/LICENSE)
 
 Building the library
 --------------------
