@@ -10,17 +10,24 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.AuthCache;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.protocol.ClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.util.EntityUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 
@@ -121,8 +128,9 @@ public class ChoiceViewSession {
 	private Session cvSession;
 	
 	private URI sessionsUri;
-	private HttpClient client;
+	private DefaultHttpClient client;
 	private ObjectMapper mapper;
+	private BasicHttpContext httpContext;
 	
 	public int GetSessionId() { return cvSession.sessionId; }
 	public String GetCallerId() { return cvSession.callerId; }
@@ -132,7 +140,8 @@ public class ChoiceViewSession {
 	public String GetNetworkType() { return cvSession.networkType; }
 	public Map<String, String> GetProperties() { return Collections.unmodifiableMap(cvSession.properties); }
 	
-	public ChoiceViewSession(String serverAddress, int serverPort, boolean useHttps) {
+	ChoiceViewSession(String serverAddress, int serverPort, boolean useHttps,
+			String username, String password) {
 		if(serverAddress == null) throw new IllegalArgumentException("No server address specified.");
 		URIBuilder builder = new URIBuilder();
 		builder.setScheme(useHttps ? "https" : "http").setHost(serverAddress).setPath("/ivr/api/sessions");
@@ -147,10 +156,39 @@ public class ChoiceViewSession {
 		cvSession = new Session();
 		client = new DefaultHttpClient();
 		mapper = new ObjectMapper();
+		
+		if(username != null && password != null) {
+			// Add basic authentication credentials
+			client.getCredentialsProvider().setCredentials(
+                    new AuthScope(serverAddress, serverPort),
+                    new UsernamePasswordCredentials(username, password));
+			
+			AuthCache authCache = new BasicAuthCache();
+            authCache.put(new HttpHost(serverAddress, serverPort, useHttps ? "https" : "http"),
+            		      new BasicScheme());
+
+            httpContext = new BasicHttpContext();
+            httpContext.setAttribute(ClientContext.AUTH_CACHE, authCache);
+		} else {
+			httpContext = null;
+		}
+	}
+
+	// If username and password is specified, must use https
+	public ChoiceViewSession(String serverAddress, int serverPort, String username, String password) {
+		this(serverAddress, serverPort, true, username, password);
+	}
+	
+	public ChoiceViewSession(String serverAddress, String username, String password) {
+		this(serverAddress, 443, username, password);
+	}
+	
+	public ChoiceViewSession(String serverAddress, int serverPort, boolean useHttps) {
+		this(serverAddress, serverPort, useHttps, null, null);
 	}
 	
 	public ChoiceViewSession(String serverAddress, boolean useHttps) {
-		this(serverAddress, useHttps ? 443 : 80, useHttps);
+		this(serverAddress, useHttps ? 443 : 80, useHttps, null, null);
 	}
 	
 	public ChoiceViewSession(String serverAddress) {
@@ -171,7 +209,7 @@ public class ChoiceViewSession {
 			request.setEntity(new StringEntity(mapper.writeValueAsString(params),
 					ContentType.create("application/json", "utf-8")));
 			request.addHeader("ACCEPT", "application/json");
-			Session newSession = client.execute(request, sessionHandler);
+			Session newSession = client.execute(request, sessionHandler, httpContext);
 			if(newSession != null) {
 				cvSession = newSession;
 				return true;
@@ -192,7 +230,7 @@ public class ChoiceViewSession {
 		if(selfUri != null) {
 			try {
 				HttpDelete request = new HttpDelete(selfUri);
-				HttpResponse response = client.execute(request);
+				HttpResponse response = client.execute(request, httpContext);
 				if(response.getStatusLine().getStatusCode() == 200) {
 					cvSession.status = "disconnected";
 					return true;
@@ -215,7 +253,7 @@ public class ChoiceViewSession {
 			if(selfUri != null) {
 				HttpGet request = new HttpGet(selfUri);
 				request.addHeader("ACCEPT", "application/json");
-				Session newSession = client.execute(request, sessionHandler);
+				Session newSession = client.execute(request, sessionHandler, httpContext);
 				if(newSession != null) {
 					cvSession = newSession;
 					return true;
@@ -243,7 +281,7 @@ public class ChoiceViewSession {
 				HttpPost request = new HttpPost(selfUri);
 				request.setEntity(new StringEntity(mapper.writeValueAsString(params),
 						ContentType.create("application/json", "utf-8")));
-				HttpResponse response = client.execute(request);
+				HttpResponse response = client.execute(request, httpContext);
 				return response.getStatusLine().getStatusCode() == 200;
 			}
 		} catch (IOException e) {
@@ -265,7 +303,7 @@ public class ChoiceViewSession {
 				HttpPost request = new HttpPost(selfUri);
 				request.setEntity(new StringEntity(msg,
 						ContentType.create("text/plain", "utf-8")));
-				HttpResponse response = client.execute(request);
+				HttpResponse response = client.execute(request, httpContext);
 				return response.getStatusLine().getStatusCode() == 200;
 			}
 		} catch (IOException e) {
@@ -284,7 +322,7 @@ public class ChoiceViewSession {
 			URI apiUri = getControlMessageUri();
 			if(apiUri != null) {
 				HttpGet request = new HttpGet(apiUri);
-				return client.execute(request, controlMessageHandler);
+				return client.execute(request, controlMessageHandler, httpContext);
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -302,7 +340,7 @@ public class ChoiceViewSession {
 			URI apiUri = getPayloadUri();
 			if(apiUri != null) {
 				HttpGet request = new HttpGet(apiUri);
-				Payload payload = client.execute(request, payloadHandler);
+				Payload payload = client.execute(request, payloadHandler, httpContext);
 				if(payload != null && !payload.properties.equals(cvSession.properties)) {
 					cvSession.properties.putAll(payload.properties);
 				}
@@ -335,7 +373,7 @@ public class ChoiceViewSession {
 				HttpPost request = new HttpPost(apiUri);
 				request.setEntity(new StringEntity(mapper.writeValueAsString(pairs),
 						ContentType.create("application/json", "utf-8")));
-				HttpResponse response = client.execute(request);
+				HttpResponse response = client.execute(request, httpContext);
 				return response.getStatusLine().getStatusCode() == 200;
 			}
 		} catch (IOException e) {
