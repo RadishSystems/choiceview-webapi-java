@@ -27,7 +27,7 @@ LICENSE
 
 Building the library
 --------------------
-The choiceview-webapi-java library is built and maintained as a [Maven](http://maven.apache.org) project. Once that you have Maven installed you can easily build this library by running the following command from the project's root folder:
+The choiceview-webapi-java library is built and maintained as a [Maven](http://maven.apache.org) project. Once you have Maven installed you can easily build this library by running the following command from the project's root folder:
 
 mvn project
 
