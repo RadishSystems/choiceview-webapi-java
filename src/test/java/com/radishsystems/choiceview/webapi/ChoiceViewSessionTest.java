@@ -313,66 +313,66 @@ public class ChoiceViewSessionTest {
 
 	@Test
 	public void testStartSession() {
-		assertTrue(testSession.StartSession(expectedCallerId, expectedCallId));
-		assertEquals(expectedSessionId, testSession.GetSessionId());
-		assertEquals(expectedCallerId, testSession.GetCallerId());
-		assertEquals(expectedCallId, testSession.GetCallId());
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
+		assertEquals(expectedSessionId, testSession.getSessionId());
+		assertEquals(expectedCallerId, testSession.getCallerId());
+		assertEquals(expectedCallId, testSession.getCallId());
 	}
 
 	@Test
 	public void testEndSession() {
 		// EndSession fails if no session
-		assertFalse(testSession.EndSession());
+		assertFalse(testSession.endSession());
 		
 		// EndSession succeeds if the session is active
-		assertTrue(testSession.StartSession(expectedCallerId, expectedCallId));
-		assertTrue(testSession.EndSession());
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
+		assertTrue(testSession.endSession());
 	}
 
 	@Test
 	public void testUpdateSession() {
 		// UpdateSession fails if no session
-		assertFalse(testSession.UpdateSession());
+		assertFalse(testSession.updateSession());
 		
 		// UpdateSession succeeds if session is started
-		assertTrue(testSession.StartSession(expectedCallerId, expectedCallId));
-		assertTrue(testSession.UpdateSession());
-		assertEquals(expectedSessionId, testSession.GetSessionId());
-		assertEquals(expectedCallerId, testSession.GetCallerId());
-		assertEquals(expectedCallId, testSession.GetCallId());
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
+		assertTrue(testSession.updateSession());
+		assertEquals(expectedSessionId, testSession.getSessionId());
+		assertEquals(expectedCallerId, testSession.getCallerId());
+		assertEquals(expectedCallId, testSession.getCallId());
 	}
 
 	@Test
 	public void testSendUrl() {
 		// SendUrl fails if no session
-		assertFalse(testSession.SendUrl("http://www.radishsystems.com/"));
+		assertFalse(testSession.sendUrl("http://www.radishsystems.com/"));
 		
-		assertTrue(testSession.StartSession(expectedCallerId, expectedCallId));
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
 		// SendUrl fails if no url
-		assertFalse(testSession.SendUrl(""));
-		assertFalse(testSession.SendUrl(null));
+		assertFalse(testSession.sendUrl(""));
+		assertFalse(testSession.sendUrl(null));
 		
-		assertTrue(testSession.SendUrl("http://www.radishsystems.com/"));
+		assertTrue(testSession.sendUrl("http://www.radishsystems.com/"));
 	}
 
 	@Test
 	public void testSendText() {
 		// SendUrl fails if no session
-		assertFalse(testSession.SendText("How may I help you?"));
+		assertFalse(testSession.sendText("How may I help you?"));
 		
-		assertTrue(testSession.StartSession(expectedCallerId, expectedCallId));
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
 		// SendUrl fails if no url
-		assertFalse(testSession.SendText(""));
-		assertFalse(testSession.SendText(null));
+		assertFalse(testSession.sendText(""));
+		assertFalse(testSession.sendText(null));
 		
-		assertTrue(testSession.SendText("How may I help you?"));
+		assertTrue(testSession.sendText("How may I help you?"));
 	}
 
 	@Test
 	public void testGetControlMessage() {
-		assertNull(testSession.GetControlMessage());
-		assertTrue(testSession.StartSession(expectedCallerId, expectedCallId));
-		String actualControlMessage = testSession.GetControlMessage();
+		assertNull(testSession.getControlMessage());
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
+		String actualControlMessage = testSession.getControlMessage();
 		assertEquals(expectedControlMessage, actualControlMessage);
 	}
 
@@ -382,9 +382,9 @@ public class ChoiceViewSessionTest {
 		expectedProperties.put("TestKey1", "UpdatedTestValue");
 		expectedProperties.put("TestKey2", "UpdatedTestValue");
 		
-		assertNull(testSession.UpdateProperties());
-		assertTrue(testSession.StartSession(expectedCallerId, expectedCallId));
-		Map<String, String> actualProperties = testSession.UpdateProperties();
+		assertNull(testSession.updateProperties());
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
+		Map<String, String> actualProperties = testSession.updateProperties();
 		assertEquals(expectedProperties, actualProperties);
 	}
 
@@ -398,10 +398,10 @@ public class ChoiceViewSessionTest {
 		goodProperties.put("TestKey3", "UpdatedTestValue");
 		goodProperties.put("TestKey4", "UpdatedTestValue");
 
-		assertFalse(testSession.AddProperties(duplicateProperties));
-		assertTrue(testSession.StartSession(expectedCallerId, expectedCallId));
-		assertFalse(testSession.AddProperties(duplicateProperties));
-		assertTrue(testSession.AddProperties(goodProperties));
+		assertFalse(testSession.addProperties(duplicateProperties));
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
+		assertFalse(testSession.addProperties(duplicateProperties));
+		assertTrue(testSession.addProperties(goodProperties));
 	}
 
 	@Test
@@ -410,10 +410,10 @@ public class ChoiceViewSessionTest {
 		String goodName = "TestKey3";
 		String testValue = "TestValue";
 		
-		assertFalse(testSession.AddProperty(goodName, testValue));
-		assertTrue(testSession.StartSession(expectedCallerId, expectedCallId));
-		assertFalse(testSession.AddProperty(badName, testValue));
-		assertTrue(testSession.AddProperty(goodName, testValue));
+		assertFalse(testSession.addProperty(goodName, testValue));
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
+		assertFalse(testSession.addProperty(badName, testValue));
+		assertTrue(testSession.addProperty(goodName, testValue));
 	}
 	
 	@After

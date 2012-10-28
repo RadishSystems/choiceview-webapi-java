@@ -132,13 +132,13 @@ public class ChoiceViewSession {
 	private ObjectMapper mapper;
 	private BasicHttpContext httpContext;
 	
-	public int GetSessionId() { return cvSession.sessionId; }
-	public String GetCallerId() { return cvSession.callerId; }
-	public String GetCallId() { return cvSession.callId; }
-	public String GetStatus() { return cvSession.status; }
-	public String GetNetworkQuality() { return cvSession.networkQuality; }
-	public String GetNetworkType() { return cvSession.networkType; }
-	public Map<String, String> GetProperties() { return Collections.unmodifiableMap(cvSession.properties); }
+	public int getSessionId() { return cvSession.sessionId; }
+	public String getCallerId() { return cvSession.callerId; }
+	public String getCallId() { return cvSession.callId; }
+	public String getStatus() { return cvSession.status; }
+	public String getNetworkQuality() { return cvSession.networkQuality; }
+	public String getNetworkType() { return cvSession.networkType; }
+	public Map<String, String> getProperties() { return Collections.unmodifiableMap(cvSession.properties); }
 	
 	ChoiceViewSession(String serverAddress, int serverPort, boolean useHttps,
 			String username, String password) {
@@ -195,7 +195,7 @@ public class ChoiceViewSession {
 		this(serverAddress, false);
 	}
 	
-	public boolean StartSession(String callerId, String callId) {
+	public boolean startSession(String callerId, String callId) {
 		if(cvSession != null && cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
 		}
@@ -221,7 +221,7 @@ public class ChoiceViewSession {
 		return false;
 	}
 	
-	public boolean EndSession() {
+	public boolean endSession() {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
 		}
@@ -243,7 +243,7 @@ public class ChoiceViewSession {
 		return false;
 	}
 	
-	public boolean UpdateSession() {
+	public boolean updateSession() {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
 		}
@@ -266,7 +266,7 @@ public class ChoiceViewSession {
 		return false;
 	}
 	
-	public boolean SendUrl(String url) {
+	public boolean sendUrl(String url) {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected") ||
 		   url == null || url.length() == 0) {
 			return false;
@@ -291,7 +291,7 @@ public class ChoiceViewSession {
 		return false;
 	}
 	
-	public boolean SendText(String msg) {
+	public boolean sendText(String msg) {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected") ||
 		   msg == null || msg.length() == 0) {
 			return false;
@@ -313,7 +313,7 @@ public class ChoiceViewSession {
 		return false;
 	}
 	
-	public String GetControlMessage() {
+	public String getControlMessage() {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return null;
 		}
@@ -331,7 +331,7 @@ public class ChoiceViewSession {
 		return null;
 	}
 	
-	public Map<String, String> UpdateProperties() {
+	public Map<String, String> updateProperties() {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return null;
 		}
@@ -353,7 +353,7 @@ public class ChoiceViewSession {
 		return null;
 	}
 	
-	public boolean AddProperties(Map<String, String> properties) {
+	public boolean addProperties(Map<String, String> properties) {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
 		}
@@ -384,10 +384,10 @@ public class ChoiceViewSession {
 		return false;
 	}
 	
-	public boolean AddProperty(String name, String value) {
+	public boolean addProperty(String name, String value) {
 		Map<String, String> properties = new HashMap<String, String>();
 		properties.put(name, value);
-		return AddProperties(properties);
+		return addProperties(properties);
 	}
 	
 	private URI getUri(String rel) {
