@@ -12,6 +12,7 @@ import java.util.Map;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
+import org.apache.http.ParseException;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.AuthCache;
@@ -79,14 +80,24 @@ public class ChoiceViewSession {
 			links = new ArrayList<Link>();
 		}
 	}
+	
+	private static boolean isSuccessful(HttpResponse response) {
+		int statusCode = response.getStatusLine().getStatusCode();
+		return (statusCode > 199 && statusCode < 300);
+	}
+	
 	ResponseHandler<Session> sessionHandler = new ResponseHandler<Session>() {
 		public Session handleResponse(HttpResponse response) 
 				throws ClientProtocolException, IOException {
-			int statusCode = response.getStatusLine().getStatusCode();
-			if(statusCode > 199 && statusCode < 300) {
+			if(isSuccessful(response)) {
 				HttpEntity entity = response.getEntity();
 				if (entity != null) {
-				    return mapper.readValue(EntityUtils.toString(entity), Session.class);
+					try {
+					    return mapper.readValue(EntityUtils.toString(entity), Session.class);
+					}
+					finally {
+						entity.getContent().close();
+					}
 				}
 			}
 			return null;
@@ -95,11 +106,15 @@ public class ChoiceViewSession {
 	ResponseHandler<String> controlMessageHandler = new ResponseHandler<String>() {
 		public String handleResponse(HttpResponse response) 
 				throws ClientProtocolException, IOException {
-			int statusCode = response.getStatusLine().getStatusCode();
-			if(statusCode > 199 && statusCode < 300) {
+			if(isSuccessful(response)) {
 				HttpEntity entity = response.getEntity();
 				if (entity != null) {
-				    return EntityUtils.toString(entity);
+					try {
+						return EntityUtils.toString(entity);
+					}
+					finally {
+						entity.getContent().close();
+					}
 				}
 			}
 			return null;
@@ -108,14 +123,28 @@ public class ChoiceViewSession {
 	ResponseHandler<Payload> payloadHandler = new ResponseHandler<Payload>() {
 		public Payload handleResponse(HttpResponse response) 
 				throws ClientProtocolException, IOException {
-			int statusCode = response.getStatusLine().getStatusCode();
-			if(statusCode > 199 && statusCode < 300) {
+			if(isSuccessful(response)) {
 				HttpEntity entity = response.getEntity();
 				if (entity != null) {
-				    return mapper.readValue(EntityUtils.toString(entity), Payload.class);
+					try {
+					    return mapper.readValue(EntityUtils.toString(entity), Payload.class);
+					}
+					finally {
+						entity.getContent().close();
+					}
 				}
 			}
 			return null;
+		}
+	};
+	ResponseHandler<Boolean> defaultHandler = new ResponseHandler<Boolean>() {
+		public Boolean handleResponse(HttpResponse response)
+		throws ClientProtocolException, IOException {
+			if(!isSuccessful(response)) {
+				printErrorResponse(response);
+				return false;
+			}
+			return true;
 		}
 	};
 	
@@ -195,78 +224,77 @@ public class ChoiceViewSession {
 		this(serverAddress, false);
 	}
 	
-	public boolean startSession(String callerId, String callId) {
+	public boolean startSession(String callerId, String callId) throws IOException {
 		if(cvSession != null && cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
 		}
 		
+		Map<String, Object> params = new HashMap<String, Object>();
+		params.put("callerId", callerId);
+		params.put("callId", callId);
+		
+		HttpPost request = new HttpPost(sessionsUri);
+		request.setEntity(new StringEntity(mapper.writeValueAsString(params),
+				ContentType.create("application/json", "utf-8")));
+		request.addHeader("ACCEPT", "application/json");
 		try {
-			Map<String, Object> params = new HashMap<String, Object>();
-			params.put("callerId", callerId);
-			params.put("callId", callId);
-			
-			HttpPost request = new HttpPost(sessionsUri);
-			request.setEntity(new StringEntity(mapper.writeValueAsString(params),
-					ContentType.create("application/json", "utf-8")));
-			request.addHeader("ACCEPT", "application/json");
 			Session newSession = client.execute(request, sessionHandler, httpContext);
 			if(newSession != null) {
 				cvSession = newSession;
 				return true;
 			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}		
+		} catch(RuntimeException e)	{
+			request.abort();
+			throw e;
+		}
 		return false;
 	}
 	
-	public boolean endSession() {
+	public boolean endSession() throws IOException {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
 		}
 		
 		URI selfUri = getSessionUri();
 		if(selfUri != null) {
+			HttpDelete request = new HttpDelete(selfUri);
 			try {
-				HttpDelete request = new HttpDelete(selfUri);
-				HttpResponse response = client.execute(request, httpContext);
-				if(response.getStatusLine().getStatusCode() == 200) {
+				if(client.execute(request, defaultHandler, httpContext)) {
 					cvSession.status = "disconnected";
 					return true;
 				}
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			} catch(RuntimeException e)	{
+				request.abort();
+				throw e;
 			}
 		}		
 		return false;
 	}
 	
-	public boolean updateSession() {
+	public boolean updateSession() throws IOException {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
 		}
 		
-		try {
-			URI selfUri = getSessionUri();
-			if(selfUri != null) {
-				HttpGet request = new HttpGet(selfUri);
-				request.addHeader("ACCEPT", "application/json");
+		URI selfUri = getSessionUri();
+		if(selfUri != null) {
+			HttpGet request = new HttpGet(selfUri);
+			request.addHeader("ACCEPT", "application/json");
+			try {
 				Session newSession = client.execute(request, sessionHandler, httpContext);
 				if(newSession != null) {
 					cvSession = newSession;
 					return true;
 				}
+			} catch(RuntimeException e)	{
+				request.abort();
+				throw e;
 			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}		
+		}
 		return false;
 	}
 	
-	public boolean sendUrl(String url) {
+	public boolean sendUrl(String url) throws IOException {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected") ||
 		   url == null || url.length() == 0) {
 			return false;
@@ -275,85 +303,83 @@ public class ChoiceViewSession {
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("url", url);
 		
-		try {
-			URI selfUri = getSessionUri();
-			if(selfUri != null) {
-				HttpPost request = new HttpPost(selfUri);
-				request.setEntity(new StringEntity(mapper.writeValueAsString(params),
-						ContentType.create("application/json", "utf-8")));
-				HttpResponse response = client.execute(request, httpContext);
-				return response.getStatusLine().getStatusCode() == 200;
+		URI selfUri = getSessionUri();
+		if(selfUri != null) {
+			HttpPost request = new HttpPost(selfUri);
+			request.setEntity(new StringEntity(mapper.writeValueAsString(params),
+					ContentType.create("application/json", "utf-8")));
+			try {
+				return client.execute(request, defaultHandler, httpContext);
+			} catch(RuntimeException e)	{
+				request.abort();
+				throw e;
 			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}		
+		}
 		return false;
 	}
 	
-	public boolean sendText(String msg) {
+	public boolean sendText(String msg) throws IOException {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected") ||
 		   msg == null || msg.length() == 0) {
 			return false;
 		}
 		
-		try {
-			URI selfUri = getSessionUri();
-			if(selfUri != null) {
-				HttpPost request = new HttpPost(selfUri);
-				request.setEntity(new StringEntity(msg,
-						ContentType.create("text/plain", "utf-8")));
-				HttpResponse response = client.execute(request, httpContext);
-				return response.getStatusLine().getStatusCode() == 200;
+		URI selfUri = getSessionUri();
+		if(selfUri != null) {
+			HttpPost request = new HttpPost(selfUri);
+			request.setEntity(new StringEntity(msg,
+					ContentType.create("text/plain", "utf-8")));
+			try {
+				return client.execute(request, defaultHandler, httpContext);
+			} catch(RuntimeException e)	{
+				request.abort();
+				throw e;
 			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}		
+		}
 		return false;
 	}
 	
-	public String getControlMessage() {
+	public String getControlMessage() throws IOException {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return null;
 		}
 		
-		try {
-			URI apiUri = getControlMessageUri();
-			if(apiUri != null) {
-				HttpGet request = new HttpGet(apiUri);
+		URI apiUri = getControlMessageUri();
+		if(apiUri != null) {
+			HttpGet request = new HttpGet(apiUri);
+			try {
 				return client.execute(request, controlMessageHandler, httpContext);
+			} catch(RuntimeException e)	{
+				request.abort();
+				throw e;
 			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}		
+		}
 		return null;
 	}
 	
-	public Map<String, String> updateProperties() {
+	public Map<String, String> updateProperties() throws IOException {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return null;
 		}
 		
-		try {
-			URI apiUri = getPayloadUri();
-			if(apiUri != null) {
-				HttpGet request = new HttpGet(apiUri);
+		URI apiUri = getPayloadUri();
+		if(apiUri != null) {
+			HttpGet request = new HttpGet(apiUri);
+			try {
 				Payload payload = client.execute(request, payloadHandler, httpContext);
 				if(payload != null && !payload.properties.equals(cvSession.properties)) {
 					cvSession.properties.putAll(payload.properties);
 				}
 				return payload.properties;
+			} catch(RuntimeException e)	{
+				request.abort();
+				throw e;
 			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}		
+		}
 		return null;
 	}
 	
-	public boolean addProperties(Map<String, String> properties) {
+	public boolean addProperties(Map<String, String> properties) throws IOException {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
 		}
@@ -363,28 +389,27 @@ public class ChoiceViewSession {
 				return false;
 			}
 		}
-		try {
-			URI apiUri = getPayloadUri();
-			if(apiUri != null) {
-				List<Property> pairs = new ArrayList<Property>();
-				for(Map.Entry<String, String> pair : properties.entrySet()) {
-					pairs.add(new Property(pair.getKey(), pair.getValue()));
-				}
-				HttpPost request = new HttpPost(apiUri);
-				request.setEntity(new StringEntity(mapper.writeValueAsString(pairs),
-						ContentType.create("application/json", "utf-8")));
-				HttpResponse response = client.execute(request, httpContext);
-				return response.getStatusLine().getStatusCode() == 200;
-			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}		
 		
+		URI apiUri = getPayloadUri();
+		if(apiUri != null) {
+			List<Property> pairs = new ArrayList<Property>();
+			for(Map.Entry<String, String> pair : properties.entrySet()) {
+				pairs.add(new Property(pair.getKey(), pair.getValue()));
+			}
+			HttpPost request = new HttpPost(apiUri);
+			request.setEntity(new StringEntity(mapper.writeValueAsString(pairs),
+					ContentType.create("application/json", "utf-8")));
+			try {
+				return client.execute(request, defaultHandler, httpContext);
+			} catch(RuntimeException e)	{
+				request.abort();
+				throw e;
+			}
+		}
 		return false;
 	}
 	
-	public boolean addProperty(String name, String value) {
+	public boolean addProperty(String name, String value) throws IOException {
 		Map<String, String> properties = new HashMap<String, String>();
 		properties.put(name, value);
 		return addProperties(properties);
@@ -397,8 +422,7 @@ public class ChoiceViewSession {
 				try {
 					selfUri = new URI(l.href);
 				} catch (URISyntaxException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					System.err.println("Cannot parse API uri " + l.href);
 				}
 				break;
 			}
@@ -416,5 +440,27 @@ public class ChoiceViewSession {
 	
 	private URI getPayloadUri() {
 		return getUri(PayloadRel);
+	}
+	
+	private static void printErrorResponse(HttpResponse response) {
+		HttpEntity entity = response.getEntity();
+		if (entity != null) {
+			try {
+				System.err.println(EntityUtils.toString(entity));
+			}
+			catch (ParseException e) {
+				System.err.println("Cannot parse response: " + entity.getContentType().getValue());
+			}
+			catch (IOException e) {
+				System.err.println("Cannot read response: " + e.getMessage());
+			}
+			finally {
+				try {
+					entity.getContent().close();
+				} catch (Exception e) {
+					System.err.println("Cannot close response content stream: " + e.getMessage());
+				}
+			}
+		}
 	}
 }

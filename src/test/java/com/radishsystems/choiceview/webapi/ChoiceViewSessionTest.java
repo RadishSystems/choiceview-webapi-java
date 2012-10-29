@@ -312,7 +312,7 @@ public class ChoiceViewSessionTest {
 	}
 
 	@Test
-	public void testStartSession() {
+	public void testStartSession() throws IOException {
 		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
 		assertEquals(expectedSessionId, testSession.getSessionId());
 		assertEquals(expectedCallerId, testSession.getCallerId());
@@ -320,7 +320,7 @@ public class ChoiceViewSessionTest {
 	}
 
 	@Test
-	public void testEndSession() {
+	public void testEndSession() throws IOException {
 		// EndSession fails if no session
 		assertFalse(testSession.endSession());
 		
@@ -330,7 +330,7 @@ public class ChoiceViewSessionTest {
 	}
 
 	@Test
-	public void testUpdateSession() {
+	public void testUpdateSession() throws IOException {
 		// UpdateSession fails if no session
 		assertFalse(testSession.updateSession());
 		
@@ -343,7 +343,7 @@ public class ChoiceViewSessionTest {
 	}
 
 	@Test
-	public void testSendUrl() {
+	public void testSendUrl() throws IOException {
 		// SendUrl fails if no session
 		assertFalse(testSession.sendUrl("http://www.radishsystems.com/"));
 		
@@ -356,7 +356,7 @@ public class ChoiceViewSessionTest {
 	}
 
 	@Test
-	public void testSendText() {
+	public void testSendText() throws IOException {
 		// SendUrl fails if no session
 		assertFalse(testSession.sendText("How may I help you?"));
 		
@@ -369,7 +369,7 @@ public class ChoiceViewSessionTest {
 	}
 
 	@Test
-	public void testGetControlMessage() {
+	public void testGetControlMessage() throws IOException {
 		assertNull(testSession.getControlMessage());
 		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
 		String actualControlMessage = testSession.getControlMessage();
@@ -377,7 +377,7 @@ public class ChoiceViewSessionTest {
 	}
 
 	@Test
-	public void testUpdateProperties() {
+	public void testUpdateProperties() throws IOException {
 		final Map<String, String> expectedProperties = new HashMap<String, String>();
 		expectedProperties.put("TestKey1", "UpdatedTestValue");
 		expectedProperties.put("TestKey2", "UpdatedTestValue");
@@ -389,7 +389,7 @@ public class ChoiceViewSessionTest {
 	}
 
 	@Test
-	public void testAddProperties() {
+	public void testAddProperties() throws IOException {
 		final Map<String, String> duplicateProperties = new HashMap<String, String>();
 		duplicateProperties.put("TestKey1", "UpdatedTestValue");
 		duplicateProperties.put("TestKey2", "UpdatedTestValue");
@@ -405,7 +405,7 @@ public class ChoiceViewSessionTest {
 	}
 
 	@Test
-	public void testAddProperty() {
+	public void testAddProperty() throws IOException {
 		String badName = "TestKey1";
 		String goodName = "TestKey3";
 		String testValue = "TestValue";
