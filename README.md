@@ -27,7 +27,7 @@ LICENSE
 
 Building the library
 --------------------
-The choiceview-webapi-java library is built and maintained as a [Maven](http://maven.apache.org) project. Once you have Maven installed you can easily build this library by running the following command from the project's root folder:
+The _choiceview-webapi-java_ library is built and maintained as a [Maven](http://maven.apache.org) project. Once you have Maven installed you can easily build this library by running the following command from the project's root folder:
 
 mvn project
 
@@ -35,11 +35,21 @@ Maven will locate and download all of the build dependencies from public Maven r
 
 Using the Maven artifact
 ------------------------
-The choiceview-webapi-java is at an early stage of development. We currently don't have a maven repository for hosting maven artifacts, nor is the artifact available from any of the public Maven repositories.  We hope to provide a repository for access soon.
+The _choiceview-webapi-java_ is at an early stage of development. We currently don't have a maven repository for hosting maven artifacts, nor is the artifact available from any of the public Maven repositories.  We hope to provide a repository for access soon.
 
-Examples
---------
-The unit tests provide examples of how to make ChoiceView API calls with the java library.  We also have plans to add sample programs that can be used to send text and urls to a ChoiceView enabled device.
+Sample Programs
+---------------
+A sample console program is provided that shows how to call the methods in the java library.  To use the ApiTester program, you must have a mobile device with the latest ChoiceView client installed.  You should know the phone number of the mobile device, or the phone number that the ChoiceView client is configured to use.  The client must be configured to use the ChoiceView test server.  On iDevices, press Settings, then Advanced, then change the server field to _cvnet2.radishsystems.com_. On Droids, press the menu button, then Settings, then scroll down to the server field and change it to _cvnet2.radishsystems.com_.
+
+To start the ApiTester program, compile and execute the ApiTester class.  You will be prompted for the caller id and call id to use to start a ChoiceView session with the mobile device.  The first value entered should be the mobile phone number, the ChoiceView server uses this value as the caller id.  The second value entered is the call id. This value is optional. The call id is useful for identifying a specific ChoiceView session out of multiple sessions with the same Caller ID.
+
+After the caller id and call id is entered, you should see a line similar to:
+
+ _Starting session for ..._
+
+ To start the session, you must open the ChoiceView client on your mobile device and press the start button.  The tester will then display the current status of the ChoiceView session, and prompt for additional commands.  The command __URL__, followed by a valid url, will cause the ChoiceView client on the mobile device to display the url.  The command __PROPERTIES__ will display the session properties as defined by the mobile device.  To end the session, type __QUIT__.
+
+ The intent of the java wrapper and the sample programs is to demonstrate some techniques for making REST API calls and to showcase some commonly availble open source libraries that can be used for this purpose. Contact us if you have problems or need help in using or modifying the library or sample programs.
 
 Contact Information
 -------------------
