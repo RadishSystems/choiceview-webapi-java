@@ -176,6 +176,8 @@ public class ChoiceViewSession {
 		builder.setScheme(useHttps ? "https" : "http").setHost(serverAddress).setPath("/ivr/api/sessions");
 		if(serverPort > 0) {
 			builder.setPort(serverPort);
+		} else {
+			serverPort = useHttps ? 443 : 80;
 		}
 		try {
 			sessionsUri = builder.build();
