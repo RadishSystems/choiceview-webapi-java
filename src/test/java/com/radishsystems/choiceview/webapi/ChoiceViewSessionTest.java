@@ -80,6 +80,8 @@ public class ChoiceViewSessionTest {
 	final static int expectedSessionId = 1001;
 	final static String expectedCallerId = "7202950840";
 	final static String expectedCallId = "12345";
+	final static String expectedStateChangeUrl = "http://test.ivr.com/1001/state_change";
+	final static String expectedNewMessageUrl = "http://test.ivr.com/1001/new_message";
 	final static String expectedControlMessage = "1, Radish_Main_Menu, 0, ChoiceView+Demo";
 
 	private ChoiceViewSession testSession;
@@ -317,6 +319,36 @@ public class ChoiceViewSessionTest {
 		assertEquals(expectedSessionId, testSession.getSessionId());
 		assertEquals(expectedCallerId, testSession.getCallerId());
 		assertEquals(expectedCallId, testSession.getCallId());
+	}
+
+	@Test
+	public void testStartSessionWithGoodUrls() throws IOException {
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId, expectedStateChangeUrl, expectedNewMessageUrl));
+		assertEquals(expectedSessionId, testSession.getSessionId());
+		assertEquals(expectedCallerId, testSession.getCallerId());
+		assertEquals(expectedCallId, testSession.getCallId());
+	}
+
+	@Test
+	public void testStartSessionWithBadUrls() throws IOException {
+		try {
+			assertTrue(testSession.startSession(expectedCallerId, expectedCallId, "Bad url 1", "Bad url 2"));
+		}
+		catch(IllegalArgumentException e) {
+			return;
+		}
+		fail("Badly formed uri accepted!");
+	}
+
+	@Test
+	public void testStartSessionWithOpaqueUrls() throws IOException {
+		try {
+			assertTrue(testSession.startSession(expectedCallerId, expectedCallId, "mailto:dfjacobs@yahoo.com", "mailto:dfjacobs@sshores.com"));
+		}
+		catch(IllegalArgumentException e) {
+			return;
+		}
+		fail("Opaque uri accepted!");
 	}
 
 	@Test

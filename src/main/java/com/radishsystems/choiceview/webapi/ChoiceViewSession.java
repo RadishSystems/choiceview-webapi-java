@@ -225,8 +225,18 @@ public class ChoiceViewSession {
 	public ChoiceViewSession(String serverAddress) {
 		this(serverAddress, false);
 	}
-	
+
 	public boolean startSession(String callerId, String callId) throws IOException {
+		return startSession(callerId, callId, "", "");
+	}
+
+	public boolean startSession(String callerId, String callId, String stateChangeUriString, String newMessageUriString) throws IOException {
+		URI stateChangeUri = stateChangeUriString != null && stateChangeUriString.length() > 0 ? URI.create(stateChangeUriString) : null;
+		URI newMessageUri = newMessageUriString != null && newMessageUriString.length() > 0 ? URI.create(newMessageUriString) : null;
+		return startSession(callerId, callId, stateChangeUri, newMessageUri);
+	}
+	
+	public boolean startSession(String callerId, String callId, URI stateChangeUri, URI newMessageUri) throws IOException {
 		if(cvSession != null && cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
 		}
@@ -234,6 +244,21 @@ public class ChoiceViewSession {
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("callerId", callerId);
 		params.put("callId", callId);
+		
+		if(stateChangeUri != null) {
+			if(stateChangeUri.isAbsolute() && !stateChangeUri.isOpaque()) {
+				params.put("stateChangeUri", stateChangeUri.toString());
+			} else {
+				throw new IllegalArgumentException("Invalid stateChangeUri!");
+			}
+		}
+		if(newMessageUri != null) {
+			if(newMessageUri.isAbsolute() && !newMessageUri.isOpaque()) {
+				params.put("newMessageUri", newMessageUri.toString());
+			} else {
+				throw new IllegalArgumentException("Invalid newMessageUri!");
+			}
+		}
 		
 		HttpPost request = new HttpPost(sessionsUri);
 		request.setEntity(new StringEntity(mapper.writeValueAsString(params),
