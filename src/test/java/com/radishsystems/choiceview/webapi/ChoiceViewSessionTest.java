@@ -323,32 +323,25 @@ public class ChoiceViewSessionTest {
 
 	@Test
 	public void testStartSessionWithGoodUrls() throws IOException {
-		assertTrue(testSession.startSession(expectedCallerId, expectedCallId, expectedStateChangeUrl, expectedNewMessageUrl));
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId, expectedStateChangeUrl, expectedNewMessageUrl, "basic"));
 		assertEquals(expectedSessionId, testSession.getSessionId());
 		assertEquals(expectedCallerId, testSession.getCallerId());
 		assertEquals(expectedCallId, testSession.getCallId());
 	}
 
-	@Test
-	public void testStartSessionWithBadUrls() throws IOException {
-		try {
-			assertTrue(testSession.startSession(expectedCallerId, expectedCallId, "Bad url 1", "Bad url 2"));
-		}
-		catch(IllegalArgumentException e) {
-			return;
-		}
-		fail("Badly formed uri accepted!");
+	@Test(expected=IllegalArgumentException.class)
+	public void testStartSessionWithGoodUrlsAndBadNotificationType() throws IOException {
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId, expectedStateChangeUrl, expectedNewMessageUrl, "badType"));
 	}
 
-	@Test
+	@Test(expected=IllegalArgumentException.class)
+	public void testStartSessionWithBadUrls() throws IOException {
+		assertFalse(testSession.startSession(expectedCallerId, expectedCallId, "Bad url 1", "Bad url 2", "ccxml"));
+	}
+
+	@Test(expected=IllegalArgumentException.class)
 	public void testStartSessionWithOpaqueUrls() throws IOException {
-		try {
-			assertTrue(testSession.startSession(expectedCallerId, expectedCallId, "mailto:dfjacobs@yahoo.com", "mailto:dfjacobs@sshores.com"));
-		}
-		catch(IllegalArgumentException e) {
-			return;
-		}
-		fail("Opaque uri accepted!");
+		assertFalse(testSession.startSession(expectedCallerId, expectedCallId, "mailto:dfjacobs@yahoo.com", "mailto:dfjacobs@sshores.com", "basic"));
 	}
 
 	@Test
