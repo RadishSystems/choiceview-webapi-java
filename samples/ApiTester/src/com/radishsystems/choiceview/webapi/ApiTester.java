@@ -36,6 +36,7 @@ public class ApiTester {
 		System.out.println("URL <url to send>");
 		System.out.println("TEXT <text to send>");
 		System.out.println("PROPERTIES");
+		System.out.println("TRANSFER <account to transfer to>");
 		System.out.println("QUIT");
 		System.out.print("\nEnter a command\n> ");
 		
@@ -112,7 +113,7 @@ public class ApiTester {
 						String param1 = params.hasNext() ? params.next() : null;
 						if(param1 != null && param1.length() > 0) {
 							try {
-								URI url = new URI(param1);
+								URI url = new URI(param1.trim());
 								if(!cvSession.sendUrl(url.toURL().toString())) {
 									System.err.println("Cannot send url!");
 								}
@@ -130,8 +131,20 @@ public class ApiTester {
 					else if(param0.equalsIgnoreCase("TEXT")) {
 						String param1 = params.hasNext() ? params.nextLine() : null;
 						if(param1 != null && param1.length() > 0) {
-							if(!cvSession.sendText(param1)) {
+							if(!cvSession.sendText(param1.trim())) {
 								System.err.println("Cannot send text message!");
+							}
+						} else {
+							System.err.println("No text specified!");
+						}
+					}
+					else if(param0.equalsIgnoreCase("TRANSFER")) {
+						String param1 = params.hasNext() ? params.nextLine() : null;
+						if(param1 != null && param1.length() > 0) {
+							if(cvSession.transferSession(param1.trim())) {
+								System.out.println("Session transferred to" + param1 + " account.");
+							} else {
+								System.err.println("Cannot transfer session!");
 							}
 						} else {
 							System.err.println("No text specified!");
@@ -143,6 +156,11 @@ public class ApiTester {
 		} catch (Exception e) {
 			System.err.println("Application terminated due to exception:");
 			e.printStackTrace();
+		} finally {
+			if(cvSession != null && !cvSession.getStatus().equals("disconnected")) {
+				try { cvSession.endSession(); }
+				catch(IOException te) { System.err.println(te.getMessage()); }
+			}
 		}
 		
 		System.out.println("Goodbye!");

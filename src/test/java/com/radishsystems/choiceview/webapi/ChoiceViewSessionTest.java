@@ -296,6 +296,25 @@ public class ChoiceViewSessionTest {
 		}
 	};
 	
+	private HttpRequestHandler transferHandler = new HttpRequestHandler() {
+		public void handle(HttpRequest request, HttpResponse response,
+				HttpContext context) throws HttpException, IOException {
+			String method = request.getRequestLine().getMethod().toUpperCase();
+			if(method.equals("PUT")) {
+				throw new MethodNotSupportedException("PUT request not supported for transfers");
+			}
+			if(method.equals("DELETE")) {
+				throw new MethodNotSupportedException("DELETE request not supported for transfers");
+			}
+			if(method.equals("GET")) {
+				throw new MethodNotSupportedException("GET request not supported for transfers");
+			}
+			if(method.equals("POST")) {
+				response.setStatusCode(200);
+			}
+		}
+	};
+	
 	@Before
 	public void setUp() throws Exception {
 		mapper = new ObjectMapper();
@@ -307,6 +326,7 @@ public class ChoiceViewSessionTest {
 		testServer.register(sessionUri, sessionHandler);
 		testServer.register(sessionUri + "/controlmessage", controlMessageHandler);
 		testServer.register(sessionUri + "/properties", propertiesHandler);
+		testServer.register(sessionUri + "/transfer/*", transferHandler);
 		testServer.start();
 		
 		testSession = new ChoiceViewSession(testServer.getServiceAddress().getHostName(),
@@ -365,6 +385,32 @@ public class ChoiceViewSessionTest {
 		assertEquals(expectedSessionId, testSession.getSessionId());
 		assertEquals(expectedCallerId, testSession.getCallerId());
 		assertEquals(expectedCallId, testSession.getCallId());
+	}
+
+	@Test
+	public void testTransferSessionWithBadAccountId() throws IOException {
+		String badAccountId = "";
+		
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
+		
+		// TransferSession fails if accountId is not specified
+		assertFalse(testSession.transferSession(badAccountId));
+		assertFalse(testSession.transferSession(null));
+	}
+	
+	@Test
+	public void testTransferSessionWithGoodAccountId() throws IOException {
+		String expectedAccountId = "test1";
+		
+		// TransferSession fails if no session
+		assertFalse(testSession.transferSession(expectedAccountId));
+		
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
+		
+		// TransferSession succeeds if the session is active
+		assertTrue(testSession.transferSession(expectedAccountId));
+		// After successful TransferSession, connection state is disconnected
+		assertTrue(testSession.getStatus().equals("disconnected"));
 	}
 
 	@Test

@@ -330,6 +330,34 @@ public class ChoiceViewSession {
 		return false;
 	}
 	
+	public boolean transferSession(String accountId) throws IOException {
+		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
+			return false;
+		}
+		
+		URI selfUri = getSessionUri();
+		if(selfUri != null && accountId != null && accountId.length() > 0) {
+			URI xferUri;
+			try {
+				xferUri = new URI(selfUri.toString() + "/transfer/" + accountId);
+			} catch (URISyntaxException e1) {
+				return false;
+			}
+			HttpPost request = new HttpPost(xferUri);
+			try {
+				if(client.execute(request, defaultHandler, httpContext)) {
+					// connection is gone
+					cvSession.status = "disconnected";
+					return true;
+				}
+			} catch(RuntimeException e)	{
+				request.abort();
+				throw e;
+			}
+		}
+		return false;
+	}
+	
 	public boolean sendUrl(String url) throws IOException {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected") ||
 		   url == null || url.length() == 0) {
