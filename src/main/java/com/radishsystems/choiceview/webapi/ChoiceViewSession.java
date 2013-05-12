@@ -227,16 +227,18 @@ public class ChoiceViewSession {
 	}
 
 	public boolean startSession(String callerId, String callId) throws IOException {
-		return startSession(callerId, callId, "", "");
+		return startSession(callerId, callId, "", "", "");
 	}
 
-	public boolean startSession(String callerId, String callId, String stateChangeUriString, String newMessageUriString) throws IOException {
+	public boolean startSession(String callerId, String callId,
+			String stateChangeUriString, String newMessageUriString, String notificationType) throws IOException {
 		URI stateChangeUri = stateChangeUriString != null && stateChangeUriString.length() > 0 ? URI.create(stateChangeUriString) : null;
 		URI newMessageUri = newMessageUriString != null && newMessageUriString.length() > 0 ? URI.create(newMessageUriString) : null;
-		return startSession(callerId, callId, stateChangeUri, newMessageUri);
+		return startSession(callerId, callId, stateChangeUri, newMessageUri, notificationType);
 	}
 	
-	public boolean startSession(String callerId, String callId, URI stateChangeUri, URI newMessageUri) throws IOException {
+	public boolean startSession(String callerId, String callId,
+			URI stateChangeUri, URI newMessageUri, String notificationType) throws IOException {
 		if(cvSession != null && cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
 		}
@@ -257,6 +259,13 @@ public class ChoiceViewSession {
 				params.put("newMessageUri", newMessageUri.toString());
 			} else {
 				throw new IllegalArgumentException("Invalid newMessageUri!");
+			}
+		}
+		if(notificationType != null && notificationType.length() > 0) {
+			if("basic".equalsIgnoreCase(notificationType) || "CCXML".equalsIgnoreCase(notificationType)) {
+				params.put("notificationType", notificationType);
+			} else {
+				throw new IllegalArgumentException("Invalid notificationType!");
 			}
 		}
 		
