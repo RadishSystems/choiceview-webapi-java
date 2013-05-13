@@ -36,6 +36,7 @@ public class ApiTester {
 		System.out.println("URL <url to send>");
 		System.out.println("TEXT <text to send>");
 		System.out.println("PROPERTIES");
+		System.out.println("ADD <property key> <property value>");
 		System.out.println("TRANSFER <account to transfer to>");
 		System.out.println("QUIT");
 		System.out.print("\nEnter a command\n> ");
@@ -68,6 +69,7 @@ public class ApiTester {
 						callerId = params.hasNext() ? params.next() : null;
 						callId = (callerId != null && params.hasNext()) ?
 								params.next() : null;
+						params.close();
 					}
 				} else {
 					callerId = args[0];
@@ -150,6 +152,24 @@ public class ApiTester {
 							System.err.println("No text specified!");
 						}
 					}
+					else if(param0.equalsIgnoreCase("ADD")) {
+						String param1 = params.hasNext() ? params.next() : null;
+						String param2 = params.hasNext() ? params.nextLine() : null;
+						if(param1 != null && param1.length() > 0) {
+							if(param2 != null && param2.length() > 0) {
+								if(cvSession.addProperty(param1.trim(), param2.trim())) {
+									System.out.println("Added property" + param1 + "='" + param2.trim() + ".");
+								} else {
+									System.err.println("Cannot add property " + param1 + " = [" + param2.trim() + "]");
+								}
+							} else {
+								System.err.println("Missing value for property " + param1 + "!");
+							}
+						} else {
+							System.err.println("Missing property key!");
+						}
+					}
+					params.close();
 				} while(cvSession.updateSession() &&
 						!cvSession.getStatus().equals("disconnected"));
 			}

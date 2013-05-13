@@ -257,14 +257,14 @@ public class ChoiceViewSessionTest {
 	    					throw new ProtocolException("No content type specified in POST request!");
 	                	}
 	                	if(value.contains("application/json")) {
-	        				List<Property> params = mapper.readValue(content,
-	    							new TypeReference<List<Property>>() {});
-	        				if(params != null) {
+	        				Map<String, String> params = mapper.readValue(content,
+	        						new TypeReference<Map<String, String>>() {});
+	        				if(params != null && params.size() == 2 && params.containsKey("name")) {
 			                	response.setStatusCode(200);
 			                	return;
 	        				}
 	                	}
-						throw new ProtocolException("No property list in POST request!");	                	
+						throw new ProtocolException("No client property in POST request!");	                	
 	                } else {
 		                throw new ProtocolException("No content-type header in POST request!");
 	                }
