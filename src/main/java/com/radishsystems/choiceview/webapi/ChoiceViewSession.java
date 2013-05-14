@@ -330,6 +330,34 @@ public class ChoiceViewSession {
 		return false;
 	}
 	
+	public boolean transferSession(String accountId) throws IOException {
+		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
+			return false;
+		}
+		
+		URI selfUri = getSessionUri();
+		if(selfUri != null && accountId != null && accountId.length() > 0) {
+			URI xferUri;
+			try {
+				xferUri = new URI(selfUri.toString() + "/transfer/" + accountId);
+			} catch (URISyntaxException e1) {
+				return false;
+			}
+			HttpPost request = new HttpPost(xferUri);
+			try {
+				if(client.execute(request, defaultHandler, httpContext)) {
+					// connection is gone
+					cvSession.status = "disconnected";
+					return true;
+				}
+			} catch(RuntimeException e)	{
+				request.abort();
+				throw e;
+			}
+		}
+		return false;
+	}
+	
 	public boolean sendUrl(String url) throws IOException {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected") ||
 		   url == null || url.length() == 0) {
@@ -416,24 +444,43 @@ public class ChoiceViewSession {
 	}
 	
 	public boolean addProperties(Map<String, String> properties) throws IOException {
+		for(Map.Entry<String, String> pair : properties.entrySet()) {
+			if(!addProperty(pair.getKey(), pair.getValue())) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	public boolean addProperty(String name, String value) throws IOException {
+		return addProperty(new Property(name, value));
+	}
+	
+	public boolean addProperties(Property[] properties) throws IOException {
+		for(Property p : properties) {
+			if(!addProperty(p)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public boolean addProperty(Property p) throws IOException {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return false;
 		}
-		for(String key : properties.keySet()) {
-			if(key == null || key.length() == 0 ||
-			   cvSession.properties.containsKey(key)) {
-				return false;
-			}
+		
+		if(p.name == null || p.name.length() == 0 || cvSession.properties.containsKey(p.name)) {
+			return false;
+		}
+		if(p.value == null || p.value.length() == 0) {
+			return false;
 		}
 		
 		URI apiUri = getPayloadUri();
 		if(apiUri != null) {
-			List<Property> pairs = new ArrayList<Property>();
-			for(Map.Entry<String, String> pair : properties.entrySet()) {
-				pairs.add(new Property(pair.getKey(), pair.getValue()));
-			}
 			HttpPost request = new HttpPost(apiUri);
-			request.setEntity(new StringEntity(mapper.writeValueAsString(pairs),
+			request.setEntity(new StringEntity(mapper.writeValueAsString(p),
 					ContentType.create("application/json", "utf-8")));
 			try {
 				return client.execute(request, defaultHandler, httpContext);
@@ -443,12 +490,6 @@ public class ChoiceViewSession {
 			}
 		}
 		return false;
-	}
-	
-	public boolean addProperty(String name, String value) throws IOException {
-		Map<String, String> properties = new HashMap<String, String>();
-		properties.put(name, value);
-		return addProperties(properties);
 	}
 	
 	private URI getUri(String rel) {
