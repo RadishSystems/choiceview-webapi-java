@@ -36,6 +36,8 @@ public class ApiTester {
 		System.out.println("URL <url to send>");
 		System.out.println("TEXT <text to send>");
 		System.out.println("PROPERTIES");
+		System.out.println("CONTROLMSG (must send url of web page with html controls first)");
+		System.out.println("CLEARMSG (clears any received control message)");
 		System.out.println("ADD <property key> <property value>");
 		System.out.println("TRANSFER <account to transfer to>");
 		System.out.println("QUIT");
@@ -109,6 +111,23 @@ public class ApiTester {
 								System.out.println(property.getKey() + ": " + property.getValue());
 							}
 							System.out.println();
+						}
+					}
+					else if(param0.equalsIgnoreCase("CONTROLMSG")) {
+						Map<String, String> controlmsg = cvSession.getControlMessage();
+						if(controlmsg == null) {
+							System.out.println("No control message!");
+						} else {
+							System.out.println("Control message parameters:");
+							for(Entry<String, String> parameter : controlmsg.entrySet()) {
+								System.out.println(parameter.getKey() + ": " + parameter.getValue());
+							}
+							System.out.println();
+						}
+					}
+					else if(param0.equalsIgnoreCase("CLEARMSG")) {
+						if(!cvSession.clearControlMessage()) {
+							System.err.println("Cannot clear control message!");
 						}
 					}
 					else if(param0.equalsIgnoreCase("URL")) {

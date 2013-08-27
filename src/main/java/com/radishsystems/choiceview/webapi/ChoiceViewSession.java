@@ -28,9 +28,12 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
 
 public class ChoiceViewSession {
 	
@@ -99,23 +102,30 @@ public class ChoiceViewSession {
 						entity.getContent().close();
 					}
 				}
+			} else {
+				printErrorResponse(response);
 			}
 			return null;
 		}
 	};
-	ResponseHandler<String> controlMessageHandler = new ResponseHandler<String>() {
-		public String handleResponse(HttpResponse response) 
+	ResponseHandler<Map<String, String>> controlMessageHandler = new ResponseHandler<Map<String, String>>() {
+		@SuppressWarnings("unchecked")
+		public Map<String, String> handleResponse(HttpResponse response) 
 				throws ClientProtocolException, IOException {
 			if(isSuccessful(response)) {
 				HttpEntity entity = response.getEntity();
 				if (entity != null) {
 					try {
-						return EntityUtils.toString(entity);
+						String content = EntityUtils.toString(entity);
+        				return (Map<String, String>) (isNullOrEmpty(content) ?
+        						null : mapper.readValue(content, new TypeReference<Map<String, String>>() {}));
 					}
 					finally {
 						entity.getContent().close();
 					}
 				}
+			} else {
+				printErrorResponse(response);
 			}
 			return null;
 		}
@@ -133,6 +143,8 @@ public class ChoiceViewSession {
 						entity.getContent().close();
 					}
 				}
+			} else {
+				printErrorResponse(response);
 			}
 			return null;
 		}
@@ -152,14 +164,23 @@ public class ChoiceViewSession {
 	final static String MessageNotificationRel = "/rels/messagenotification";
 	final static String SessionRel = "/rels/session";
 	final static String PayloadRel = "/rels/properties";
-	final static String ControlMessageRel = "rels/controlmessage";
+	final static String ControlMessageRel = "/rels/controlmessage";
 	
 	private Session cvSession;
 	
 	private URI sessionsUri;
 	private DefaultHttpClient client;
 	private ObjectMapper mapper;
-	private BasicHttpContext httpContext;
+	private AuthCache authCache;
+	
+	private HttpContext getApiContext() {
+        HttpContext context = null;
+        if(authCache != null) {
+        	context = new BasicHttpContext();
+        	context.setAttribute(ClientContext.AUTH_CACHE, authCache);
+        }
+        return context;
+	}
 	
 	public int getSessionId() { return cvSession.sessionId; }
 	public String getCallerId() { return cvSession.callerId; }
@@ -184,25 +205,23 @@ public class ChoiceViewSession {
 		} catch (URISyntaxException e) {
 			throw new IllegalArgumentException(e.getMessage());
 		}
-		cvSession = new Session();
-		client = new DefaultHttpClient();
-		mapper = new ObjectMapper();
 		
+		PoolingClientConnectionManager cm = new PoolingClientConnectionManager();
+		client = new DefaultHttpClient(cm);
+				
 		if(username != null && password != null) {
 			// Add basic authentication credentials
 			client.getCredentialsProvider().setCredentials(
                     new AuthScope(serverAddress, serverPort),
                     new UsernamePasswordCredentials(username, password));
 			
-			AuthCache authCache = new BasicAuthCache();
+			authCache = new BasicAuthCache();
             authCache.put(new HttpHost(serverAddress, serverPort, useHttps ? "https" : "http"),
             		      new BasicScheme());
-
-            httpContext = new BasicHttpContext();
-            httpContext.setAttribute(ClientContext.AUTH_CACHE, authCache);
-		} else {
-			httpContext = null;
 		}
+		
+		mapper = new ObjectMapper();
+		cvSession = new Session();
 	}
 
 	// If username and password is specified, must use https
@@ -274,7 +293,7 @@ public class ChoiceViewSession {
 				ContentType.create("application/json", "utf-8")));
 		request.addHeader("ACCEPT", "application/json");
 		try {
-			Session newSession = client.execute(request, sessionHandler, httpContext);
+			Session newSession = client.execute(request, sessionHandler, getApiContext());
 			if(newSession != null) {
 				cvSession = newSession;
 				return true;
@@ -295,7 +314,7 @@ public class ChoiceViewSession {
 		if(selfUri != null) {
 			HttpDelete request = new HttpDelete(selfUri);
 			try {
-				if(client.execute(request, defaultHandler, httpContext)) {
+				if(client.execute(request, defaultHandler, getApiContext())) {
 					cvSession.status = "disconnected";
 					return true;
 				}
@@ -308,7 +327,7 @@ public class ChoiceViewSession {
 	}
 	
 	public boolean updateSession() throws IOException {
-		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
+		if(cvSession == null) {
 			return false;
 		}
 		
@@ -317,11 +336,13 @@ public class ChoiceViewSession {
 			HttpGet request = new HttpGet(selfUri);
 			request.addHeader("ACCEPT", "application/json");
 			try {
-				Session newSession = client.execute(request, sessionHandler, httpContext);
+				Session newSession = client.execute(request, sessionHandler, getApiContext());
 				if(newSession != null) {
 					cvSession = newSession;
-					return true;
+				} else {
+					cvSession.status = "disconnected";
 				}
+				return true;
 			} catch(RuntimeException e)	{
 				request.abort();
 				throw e;
@@ -345,7 +366,7 @@ public class ChoiceViewSession {
 			}
 			HttpPost request = new HttpPost(xferUri);
 			try {
-				if(client.execute(request, defaultHandler, httpContext)) {
+				if(client.execute(request, defaultHandler, getApiContext())) {
 					// connection is gone
 					cvSession.status = "disconnected";
 					return true;
@@ -373,7 +394,7 @@ public class ChoiceViewSession {
 			request.setEntity(new StringEntity(mapper.writeValueAsString(params),
 					ContentType.create("application/json", "utf-8")));
 			try {
-				return client.execute(request, defaultHandler, httpContext);
+				return client.execute(request, defaultHandler, getApiContext());
 			} catch(RuntimeException e)	{
 				request.abort();
 				throw e;
@@ -394,7 +415,7 @@ public class ChoiceViewSession {
 			request.setEntity(new StringEntity(msg,
 					ContentType.create("text/plain", "utf-8")));
 			try {
-				return client.execute(request, defaultHandler, httpContext);
+				return client.execute(request, defaultHandler, getApiContext());
 			} catch(RuntimeException e)	{
 				request.abort();
 				throw e;
@@ -403,7 +424,7 @@ public class ChoiceViewSession {
 		return false;
 	}
 	
-	public String getControlMessage() throws IOException {
+	public Map<String, String> getControlMessage() throws IOException {
 		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
 			return null;
 		}
@@ -412,13 +433,33 @@ public class ChoiceViewSession {
 		if(apiUri != null) {
 			HttpGet request = new HttpGet(apiUri);
 			try {
-				return client.execute(request, controlMessageHandler, httpContext);
+				Map<String, String> msg = client.execute(request, controlMessageHandler, getApiContext());
+				if(msg != null && !msg.isEmpty()) { clearControlMessage(); }
+				return msg;
 			} catch(RuntimeException e)	{
 				request.abort();
 				throw e;
 			}
 		}
 		return null;
+	}
+	
+	public boolean clearControlMessage() throws IOException {
+		if(cvSession == null || !cvSession.status.equalsIgnoreCase("connected")) {
+			return false;
+		}
+		
+		URI apiUri = getControlMessageUri();
+		if(apiUri != null) {
+			HttpDelete request = new HttpDelete(apiUri);
+			try {
+				return client.execute(request, defaultHandler, getApiContext());
+			} catch(RuntimeException e)	{
+				request.abort();
+				throw e;
+			}
+		}
+		return false;
 	}
 	
 	public Map<String, String> updateProperties() throws IOException {
@@ -430,7 +471,7 @@ public class ChoiceViewSession {
 		if(apiUri != null) {
 			HttpGet request = new HttpGet(apiUri);
 			try {
-				Payload payload = client.execute(request, payloadHandler, httpContext);
+				Payload payload = client.execute(request, payloadHandler, getApiContext());
 				if(payload != null && !payload.properties.equals(cvSession.properties)) {
 					cvSession.properties.putAll(payload.properties);
 				}
@@ -444,6 +485,10 @@ public class ChoiceViewSession {
 	}
 	
 	public boolean addProperties(Map<String, String> properties) throws IOException {
+		if(properties == null || properties.size() == 0) {
+			return false;
+		}
+		
 		for(Map.Entry<String, String> pair : properties.entrySet()) {
 			if(!addProperty(pair.getKey(), pair.getValue())) {
 				return false;
@@ -470,10 +515,10 @@ public class ChoiceViewSession {
 			return false;
 		}
 		
-		if(p.name == null || p.name.length() == 0 || cvSession.properties.containsKey(p.name)) {
+		if(isNullOrEmpty(p.name) || cvSession.properties.containsKey(p.name)) {
 			return false;
 		}
-		if(p.value == null || p.value.length() == 0) {
+		if(isNullOrEmpty(p.value)) {
 			return false;
 		}
 		
@@ -483,7 +528,7 @@ public class ChoiceViewSession {
 			request.setEntity(new StringEntity(mapper.writeValueAsString(p),
 					ContentType.create("application/json", "utf-8")));
 			try {
-				return client.execute(request, defaultHandler, httpContext);
+				return client.execute(request, defaultHandler, getApiContext());
 			} catch(RuntimeException e)	{
 				request.abort();
 				throw e;
@@ -519,25 +564,13 @@ public class ChoiceViewSession {
 		return getUri(PayloadRel);
 	}
 	
+	private static boolean isNullOrEmpty(String value) {
+		return (value == null || value.length() == 0);
+	}
+	
 	private static void printErrorResponse(HttpResponse response) {
-		HttpEntity entity = response.getEntity();
-		if (entity != null) {
-			try {
-				System.err.println(EntityUtils.toString(entity));
-			}
-			catch (ParseException e) {
-				System.err.println("Cannot parse response: " + entity.getContentType().getValue());
-			}
-			catch (IOException e) {
-				System.err.println("Cannot read response: " + e.getMessage());
-			}
-			finally {
-				try {
-					entity.getContent().close();
-				} catch (Exception e) {
-					System.err.println("Cannot close response content stream: " + e.getMessage());
-				}
-			}
-		}
+		System.err.println(String.format("HTTP request failed: %s (%d)",
+				response.getStatusLine().getReasonPhrase(),
+				response.getStatusLine().getStatusCode()));
 	}
 }

@@ -25,6 +25,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ChoiceViewSessionTest {
@@ -82,11 +83,14 @@ public class ChoiceViewSessionTest {
 	final static String expectedCallId = "12345";
 	final static String expectedStateChangeUrl = "http://test.ivr.com/1001/state_change";
 	final static String expectedNewMessageUrl = "http://test.ivr.com/1001/new_message";
-	final static String expectedControlMessage = "1, Radish_Main_Menu, 0, ChoiceView+Demo";
+	final static Map<String, String> expectedControlMessage = new HashMap<String, String>();
 
 	private ChoiceViewSession testSession;
 	private LocalTestServer testServer;
 	private ObjectMapper mapper;
+	
+	private boolean activeSession = false;
+	private boolean controlMessageAvailable = false;
 	
 	private HttpRequestHandler sessionsHandler = new HttpRequestHandler() {
 		public void handle(HttpRequest request, HttpResponse response,
@@ -141,7 +145,8 @@ public class ChoiceViewSessionTest {
 					          selfUri + "/properties"));
 					response.setEntity(new StringEntity(mapper.writeValueAsString(session),
 							ContentType.create("application/json", "utf-8")));
-
+					activeSession = true;
+					controlMessageAvailable = true;
 				} else {
 					throw new ProtocolException("No caller id in POST request content!");
 				}
@@ -157,9 +162,19 @@ public class ChoiceViewSessionTest {
 				throw new MethodNotSupportedException("PUT request not supported for sessions");
 			}
 			if(method.equals("DELETE")) {
-				response.setStatusCode(200);
+				if(activeSession) {
+					activeSession = false;
+					controlMessageAvailable = false;
+					response.setStatusCode(200);
+				} else {
+					response.setStatusCode(404);
+				}
 			}
 			if(method.equals("GET")) {
+				if(!activeSession) {
+					response.setStatusCode(404);
+					return;
+				}
 				String sessionUri = "http://" + testServer.getServiceAddress().getHostName() + ":" +
 						testServer.getServiceAddress().getPort() + "/" +
 						request.getRequestLine().getUri();
@@ -183,6 +198,10 @@ public class ChoiceViewSessionTest {
 				return;
 			}
 			if(method.equals("POST")) {
+				if(!activeSession) {
+					response.setStatusCode(404);
+					return;
+				}
 				String content = null;
 				if(request instanceof HttpEntityEnclosingRequest) {
 	                HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
@@ -225,6 +244,10 @@ public class ChoiceViewSessionTest {
 				throw new MethodNotSupportedException("DELETE request not supported for properties");
 			}
 			if(method.equals("GET")) {
+				if(!activeSession) {
+					response.setStatusCode(404);
+					return;
+				}
 				String payloadUri = "http://" + testServer.getServiceAddress().getHostName() + ":" +
 						testServer.getServiceAddress().getPort() + request.getRequestLine().getUri();
 				String sessionUri = payloadUri.replace("/properties", "");
@@ -244,6 +267,10 @@ public class ChoiceViewSessionTest {
 				return;
 			}
 			if(method.equals("POST")) {
+				if(!activeSession) {
+					response.setStatusCode(404);
+					return;
+				}
 				String content = null;
 				if(request instanceof HttpEntityEnclosingRequest) {
 	                HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
@@ -283,12 +310,27 @@ public class ChoiceViewSessionTest {
 				throw new MethodNotSupportedException("PUT request not supported for control message");
 			}
 			if(method.equals("DELETE")) {
-				response.setStatusCode(200);
+				if(activeSession) {
+					if(controlMessageAvailable) {
+						response.setStatusCode(200);
+						controlMessageAvailable = false;
+					} else {
+						response.setStatusCode(304);
+					}
+				} else {
+					response.setStatusCode(404);
+				}
 			}
 			if(method.equals("GET")) {
-				response.setStatusCode(200);
-				response.setEntity(new StringEntity(expectedControlMessage,
-						ContentType.create("text/plain", "utf-8")));
+				if(!activeSession) {
+					response.setStatusCode(404);
+				} else {
+					response.setStatusCode(200);
+					if(controlMessageAvailable) {
+						response.setEntity(new StringEntity(mapper.writeValueAsString(expectedControlMessage),
+								ContentType.create("application/json", "utf-8")));
+					}
+				}
 			}
 			if(method.equals("POST")) {
 				throw new MethodNotSupportedException("POST request not supported for control message");
@@ -310,10 +352,23 @@ public class ChoiceViewSessionTest {
 				throw new MethodNotSupportedException("GET request not supported for transfers");
 			}
 			if(method.equals("POST")) {
-				response.setStatusCode(200);
+				if(activeSession) {
+					activeSession = false;
+					response.setStatusCode(200);
+				} else {
+					response.setStatusCode(404);
+				}
 			}
 		}
 	};
+
+	@BeforeClass
+	public static void onlyOnce() {
+		expectedControlMessage.put("MenuNumber", "1");
+		expectedControlMessage.put("MenuName", "Radish_Main_Menu");
+		expectedControlMessage.put("ButtonNumber", "0");
+		expectedControlMessage.put("ButtonName", "ChoiceView+Demo");
+	}
 	
 	@Before
 	public void setUp() throws Exception {
@@ -372,10 +427,12 @@ public class ChoiceViewSessionTest {
 		// EndSession succeeds if the session is active
 		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
 		assertTrue(testSession.endSession());
+		// EndSession fails if the session is not active
+		assertFalse(testSession.endSession());
 	}
 
 	@Test
-	public void testUpdateSession() throws IOException {
+	public void testUpdateSessionWhenIVREndsSession() throws IOException {
 		// UpdateSession fails if no session
 		assertFalse(testSession.updateSession());
 		
@@ -385,6 +442,20 @@ public class ChoiceViewSessionTest {
 		assertEquals(expectedSessionId, testSession.getSessionId());
 		assertEquals(expectedCallerId, testSession.getCallerId());
 		assertEquals(expectedCallId, testSession.getCallId());
+		// UpdateSession succeeds if the session has ended
+		assertTrue(testSession.endSession());
+		assertTrue(testSession.updateSession());
+		assertTrue("disconnected".equals(testSession.getStatus()));
+	}
+
+	@Test
+	public void testUpdateSessionWhenSwitchEndsSession() throws IOException {
+		// UpdateSession succeeds if the session is ended by the server
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
+		assertTrue("connected".equals(testSession.getStatus()));
+		activeSession = false;
+		assertTrue(testSession.updateSession());
+		assertTrue("disconnected".equals(testSession.getStatus()));
 	}
 
 	@Test
@@ -411,6 +482,8 @@ public class ChoiceViewSessionTest {
 		assertTrue(testSession.transferSession(expectedAccountId));
 		// After successful TransferSession, connection state is disconnected
 		assertTrue(testSession.getStatus().equals("disconnected"));
+		// TransferSession fails if session has ended
+		assertFalse(testSession.transferSession(expectedAccountId));
 	}
 
 	@Test
@@ -422,29 +495,59 @@ public class ChoiceViewSessionTest {
 		// SendUrl fails if no url
 		assertFalse(testSession.sendUrl(""));
 		assertFalse(testSession.sendUrl(null));
-		
+		// SendUrl succeeds if url is specified
 		assertTrue(testSession.sendUrl("http://www.radishsystems.com/"));
+		// SendUrl fails if session has ended
+		assertTrue(testSession.endSession());
+		assertFalse(testSession.sendUrl("http://www.radishsystems.com/"));
 	}
 
 	@Test
 	public void testSendText() throws IOException {
-		// SendUrl fails if no session
+		// SendText fails if no session
 		assertFalse(testSession.sendText("How may I help you?"));
 		
 		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
-		// SendUrl fails if no url
+		// SendText fails if no text
 		assertFalse(testSession.sendText(""));
 		assertFalse(testSession.sendText(null));
-		
+		// SendText succeeds if text is specified
 		assertTrue(testSession.sendText("How may I help you?"));
+		// SendText fails if session has ended
+		assertTrue(testSession.endSession());
+		assertFalse(testSession.sendText("How may I help you?"));
 	}
 
 	@Test
 	public void testGetControlMessage() throws IOException {
+		// GetControlMessage returns null if no session
 		assertNull(testSession.getControlMessage());
 		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
-		String actualControlMessage = testSession.getControlMessage();
+		// GetControlMessage returns message if session is active
+		Map<String, String> actualControlMessage = testSession.getControlMessage();
 		assertEquals(expectedControlMessage, actualControlMessage);
+		// Once GetControlMessage reads the message, it is cleared
+		assertNull(testSession.getControlMessage());
+		// GetControlMessage returns null if session has ended
+		controlMessageAvailable = true;
+		assertTrue(testSession.endSession());
+		assertNull(testSession.getControlMessage());
+	}
+
+	@Test
+	public void testClearControlMessage() throws IOException {
+		// ClearControlMessage fails if no session
+		assertFalse(testSession.clearControlMessage());
+		
+		// ClearControlMessage succeeds if the session is active
+		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
+		assertTrue(testSession.clearControlMessage());
+		// ClearControlMessage fails if there is no message
+		assertFalse(testSession.clearControlMessage());
+		// ClearControlMessage fails if session has ended
+		controlMessageAvailable = true;
+		assertTrue(testSession.endSession());
+		assertFalse(testSession.clearControlMessage());
 	}
 
 	@Test
@@ -452,11 +555,16 @@ public class ChoiceViewSessionTest {
 		final Map<String, String> expectedProperties = new HashMap<String, String>();
 		expectedProperties.put("TestKey1", "UpdatedTestValue");
 		expectedProperties.put("TestKey2", "UpdatedTestValue");
-		
+
+		// UpdateProperties fails if no session
 		assertNull(testSession.updateProperties());
+		// UpdateProperties succeeds if the session is active
 		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
 		Map<String, String> actualProperties = testSession.updateProperties();
 		assertEquals(expectedProperties, actualProperties);
+		// UpdateProperties returns null if session has ended
+		assertTrue(testSession.endSession());
+		assertNull(testSession.updateProperties());
 	}
 
 	@Test
@@ -466,25 +574,40 @@ public class ChoiceViewSessionTest {
 		duplicateProperties.put("TestKey2", "UpdatedTestValue");
 		
 		final Map<String, String> goodProperties = new HashMap<String, String>();
-		goodProperties.put("TestKey3", "UpdatedTestValue");
-		goodProperties.put("TestKey4", "UpdatedTestValue");
+		goodProperties.put("TestKey3", "NewTestValue");
+		goodProperties.put("TestKey4", "NewTestValue");
+		
+		final Map<String, String> goodProperties2 = new HashMap<String, String>();
+		goodProperties2.put("TestKey5", "NewTestValue");
+		goodProperties2.put("TestKey6", "NewTestValue");
 
+		// AddProperties fails if no session
 		assertFalse(testSession.addProperties(duplicateProperties));
+		// AddProperties succeeds if the session is active
 		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
 		assertFalse(testSession.addProperties(duplicateProperties));
 		assertTrue(testSession.addProperties(goodProperties));
+		// AddProperties fails if session is ended
+		assertTrue(testSession.endSession());
+		assertFalse(testSession.addProperties(goodProperties2));
 	}
 
 	@Test
 	public void testAddProperty() throws IOException {
 		String badName = "TestKey1";
 		String goodName = "TestKey3";
+		String goodName2 = "TestKey4";
 		String testValue = "TestValue";
 		
+		// AddProperty fails if no session
 		assertFalse(testSession.addProperty(goodName, testValue));
+		// AddProperty succeeds if the session is active
 		assertTrue(testSession.startSession(expectedCallerId, expectedCallId));
 		assertFalse(testSession.addProperty(badName, testValue));
 		assertTrue(testSession.addProperty(goodName, testValue));
+		// AddProperty fails if the session is ended
+		assertTrue(testSession.endSession());
+		assertFalse(testSession.addProperty(goodName2, testValue));
 	}
 	
 	@After
