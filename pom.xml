@@ -4,7 +4,7 @@
 
   <groupId>com.radishsystems.choiceview</groupId>
   <artifactId>choiceview-webapi-java</artifactId>
-  <version>1.0.0-alpha_7</version>
+  <version>1.1.0-beta</version>
   <packaging>jar</packaging>
 
   <name>choiceview-webapi-java</name>
