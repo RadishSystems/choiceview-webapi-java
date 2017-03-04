@@ -1,5 +1,10 @@
-*.class
 target
+
+# exclude Eclipse IDE files
 .project
 .classpath
 .settings
+
+# exclude Intellij IDE files
+.idea
+/choiceview-webapi-java.iml
