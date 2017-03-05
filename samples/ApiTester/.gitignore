@@ -1,1 +1,2 @@
-/bin
+#ignore IntelliJ IDEA IDE files
+/choiceview-sample-apitester.iml
